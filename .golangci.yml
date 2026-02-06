@@ -1,0 +1,30 @@
+version: "2"
+
+run:
+  timeout: 5m
+
+linters:
+  enable:
+    - errcheck
+    - govet
+    - staticcheck
+    - gosec
+    - ineffassign
+    - unused
+    - misspell
+  settings:
+    gosec:
+      excludes:
+        - G404
+
+formatters:
+  enable:
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/danielthedm/promptsec
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0

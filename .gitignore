@@ -1,0 +1,15 @@
+CLAUDE.md
+*.exe
+*.test
+*.out
+*.prof
+coverage.txt
+dist/
+vendor/
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+testdata/benchmark/.safeguard_cache.json

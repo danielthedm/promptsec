@@ -1,0 +1,27 @@
+The datasets in this directory are sourced from third parties and are
+subject to their original licenses.
+
+================================================================================
+deepset/prompt-injections
+================================================================================
+
+Source: https://huggingface.co/datasets/deepset/prompt-injections
+Copyright: deepset GmbH
+License: Apache License 2.0
+          https://www.apache.org/licenses/LICENSE-2.0
+
+The file deepset_prompt_injections.json contains data redistributed under
+Apache-2.0. No modifications were made to the text or label values.
+
+================================================================================
+xTRam1/safe-guard-prompt-injection (fetched at test time, not committed)
+================================================================================
+
+Source: https://huggingface.co/datasets/xTRam1/safe-guard-prompt-injection
+Authors: Lutfi Eren Erdogan, Chuyi Shang, Aryan Goyal, Siddarth Ijju
+         (UC Berkeley)
+Paper:   https://arxiv.org/abs/2402.13064
+License: No explicit license provided by the authors.
+
+This dataset is fetched at test time via the public HuggingFace API and
+cached locally. It is not committed to or redistributed in this repository.
