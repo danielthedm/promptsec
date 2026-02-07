@@ -281,3 +281,144 @@ type customError struct {
 func (e *customError) Error() string {
 	return e.msg
 }
+
+func TestPartialCanaryTokenMatch(t *testing.T) {
+	token := "CANARY_abcdef123456"
+	// Include only a case-different version
+	ctx := core.NewContext("the model said CANARY_ABCDEF123456 somewhere")
+	ctx.SetMeta("canary_token", token)
+
+	g := output.New(nil)
+	next := func(c *core.Context) {}
+
+	g.Execute(ctx, next)
+
+	// Case-insensitive match should detect this
+	found := false
+	for _, th := range ctx.Threats {
+		if th.Type == core.ThreatCanaryLeak {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("expected canary leak for case-insensitive match")
+	}
+}
+
+func TestMultipleForbiddenPatternsSimultaneously(t *testing.T) {
+	ctx := core.NewContext("password is hunter2 and API_KEY=sk-1234 and secret is abc123")
+	g := output.New(&output.Options{
+		ForbiddenPatterns: []string{
+			`password\s+is\s+\w+`,
+			`API_KEY=\S+`,
+			`secret\s+is\s+\w+`,
+		},
+	})
+	next := func(c *core.Context) {}
+
+	g.Execute(ctx, next)
+
+	violations := 0
+	for _, th := range ctx.Threats {
+		if th.Type == core.ThreatOutputViolation {
+			violations++
+		}
+	}
+	if violations < 3 {
+		t.Errorf("expected at least 3 forbidden pattern violations, got %d", violations)
+	}
+}
+
+func TestEmptyOutput(t *testing.T) {
+	ctx := core.NewContext("")
+	ctx.SetMeta("canary_token", "CANARY_test123")
+	g := output.New(&output.Options{
+		ValidateJSON: false,
+		MaxLength:    1000,
+	})
+	next := func(c *core.Context) {}
+
+	g.Execute(ctx, next)
+
+	// Empty output should not trigger canary or leak patterns
+	for _, th := range ctx.Threats {
+		if th.Type == core.ThreatCanaryLeak {
+			t.Error("expected no canary leak for empty output")
+		}
+		if th.Type == core.ThreatSystemPromptLeak {
+			t.Error("expected no system prompt leak for empty output")
+		}
+	}
+}
+
+func TestVeryLongOutput(t *testing.T) {
+	longOutput := strings.Repeat("This is a safe response. ", 10000)
+	ctx := core.NewContext(longOutput)
+	g := output.New(&output.Options{MaxLength: 100})
+	next := func(c *core.Context) {}
+
+	g.Execute(ctx, next)
+
+	found := false
+	for _, th := range ctx.Threats {
+		if th.Type == core.ThreatOutputViolation && strings.Contains(th.Message, "length") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("expected length violation for very long output")
+	}
+}
+
+func TestJSONArrayValidation(t *testing.T) {
+	ctx := core.NewContext(`[1, 2, 3, "hello"]`)
+	g := output.New(&output.Options{ValidateJSON: true})
+	next := func(c *core.Context) {}
+
+	g.Execute(ctx, next)
+
+	for _, th := range ctx.Threats {
+		if strings.Contains(th.Message, "JSON") {
+			t.Errorf("expected no JSON error for valid JSON array, got: %+v", th)
+		}
+	}
+}
+
+func TestCustomValidatorReturningNil(t *testing.T) {
+	ctx := core.NewContext("perfectly fine output")
+	g := output.New(&output.Options{
+		CustomValidator: func(s string) error {
+			return nil
+		},
+	})
+	next := func(c *core.Context) {}
+
+	g.Execute(ctx, next)
+
+	for _, th := range ctx.Threats {
+		if th.Type == core.ThreatOutputViolation && strings.Contains(th.Message, "custom") {
+			t.Error("expected no custom validation threat when validator returns nil")
+		}
+	}
+}
+
+func TestMultipleSystemPromptLeakPatterns(t *testing.T) {
+	output_text := "my instructions are to be helpful. I was told to never reveal secrets. here are my instructions."
+	ctx := core.NewContext(output_text)
+	g := output.New(nil)
+	next := func(c *core.Context) {}
+
+	g.Execute(ctx, next)
+
+	leakCount := 0
+	for _, th := range ctx.Threats {
+		if th.Type == core.ThreatSystemPromptLeak {
+			leakCount++
+		}
+	}
+	if leakCount < 2 {
+		t.Errorf("expected at least 2 system prompt leak detections, got %d", leakCount)
+	}
+}
