@@ -276,3 +276,167 @@ func isAlphaNum(s string) bool {
 	}
 	return true
 }
+
+func TestSandwichEmptySystemPrompt(t *testing.T) {
+	ctx := core.NewContext("user input")
+	g := structure.NewSandwich(&structure.Options{SystemPrompt: ""})
+	next := func(c *core.Context) {}
+
+	g.Execute(ctx, next)
+
+	if !strings.Contains(ctx.Input, "user input") {
+		t.Error("expected user input to be present even with empty system prompt")
+	}
+	// Should still have the default reminder
+	if !strings.Contains(ctx.Input, "Remember:") {
+		t.Error("expected default reminder even with empty system prompt")
+	}
+}
+
+func TestPostPromptEmptySystemPrompt(t *testing.T) {
+	ctx := core.NewContext("user input")
+	g := structure.NewPostPrompt(&structure.Options{SystemPrompt: ""})
+	next := func(c *core.Context) {}
+
+	g.Execute(ctx, next)
+
+	if !strings.Contains(ctx.Input, "user input") {
+		t.Error("expected user input to be present")
+	}
+}
+
+func TestVeryLongSystemPrompt(t *testing.T) {
+	longPrompt := strings.Repeat("You are a helpful assistant. ", 500)
+	userInput := "What is 2+2?"
+	ctx := core.NewContext(userInput)
+	g := structure.NewSandwich(&structure.Options{SystemPrompt: longPrompt})
+	next := func(c *core.Context) {}
+
+	g.Execute(ctx, next)
+
+	if !strings.Contains(ctx.Input, longPrompt) {
+		t.Error("expected very long system prompt to be included")
+	}
+	if !strings.Contains(ctx.Input, userInput) {
+		t.Error("expected user input to be present with long system prompt")
+	}
+}
+
+func TestSpecialCharsInUserInput(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		guard core.Guard
+	}{
+		{
+			"sandwich with newlines",
+			"line1\nline2\nline3",
+			structure.NewSandwich(&structure.Options{SystemPrompt: "Be helpful."}),
+		},
+		{
+			"sandwich with tabs",
+			"col1\tcol2\tcol3",
+			structure.NewSandwich(&structure.Options{SystemPrompt: "Be helpful."}),
+		},
+		{
+			"postprompt with newlines",
+			"line1\nline2",
+			structure.NewPostPrompt(&structure.Options{SystemPrompt: "Be helpful."}),
+		},
+		{
+			"xmltags with XML chars",
+			"<script>alert(1)</script>",
+			structure.NewXMLTags(&structure.Options{SystemPrompt: "Be helpful."}),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := core.NewContext(tt.input)
+			next := func(c *core.Context) {}
+
+			tt.guard.Execute(ctx, next)
+
+			if ctx.Input == "" {
+				t.Error("expected non-empty output")
+			}
+			v, ok := ctx.GetMeta("structured_prompt")
+			if !ok {
+				t.Fatal("expected structured_prompt metadata")
+			}
+			if v.(string) != ctx.Input {
+				t.Error("expected metadata to match ctx.Input")
+			}
+		})
+	}
+}
+
+func TestNilOptionsBehavior(t *testing.T) {
+	tests := []struct {
+		name  string
+		guard core.Guard
+	}{
+		{"sandwich nil opts", structure.NewSandwich(nil)},
+		{"postprompt nil opts", structure.NewPostPrompt(nil)},
+		{"enclosure nil opts", structure.NewEnclosure(nil)},
+		{"xmltags nil opts", structure.NewXMLTags(nil)},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := core.NewContext("test input")
+			called := false
+			next := func(c *core.Context) {
+				called = true
+			}
+
+			tt.guard.Execute(ctx, next)
+
+			if !called {
+				t.Error("expected next to be called with nil options")
+			}
+			if ctx.Input == "test input" {
+				t.Error("expected input to be modified even with nil options")
+			}
+		})
+	}
+}
+
+func TestXMLTagsEscapeApostrophe(t *testing.T) {
+	input := `it's a test with 'quotes'`
+	ctx := core.NewContext(input)
+	g := structure.NewXMLTags(&structure.Options{SystemPrompt: "Be helpful."})
+	next := func(c *core.Context) {}
+
+	g.Execute(ctx, next)
+
+	if !strings.Contains(ctx.Input, "&apos;") {
+		t.Error("expected apostrophes to be XML-escaped")
+	}
+}
+
+func TestEnclosureRandomnessIsDifferent(t *testing.T) {
+	var markers []string
+	for i := 0; i < 10; i++ {
+		ctx := core.NewContext("test")
+		g := structure.NewEnclosure(&structure.Options{SystemPrompt: "test"})
+		next := func(c *core.Context) {}
+		g.Execute(ctx, next)
+
+		lines := strings.Split(ctx.Input, "\n")
+		for _, line := range lines {
+			trimmed := strings.TrimSpace(line)
+			if len(trimmed) == 16 && isAlphaNum(trimmed) {
+				markers = append(markers, trimmed)
+				break
+			}
+		}
+	}
+
+	// All markers should be unique
+	seen := make(map[string]bool)
+	for _, m := range markers {
+		if seen[m] {
+			t.Errorf("duplicate enclosure marker found: %q", m)
+		}
+		seen[m] = true
+	}
+}

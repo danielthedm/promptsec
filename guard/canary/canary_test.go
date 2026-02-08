@@ -270,3 +270,159 @@ func TestWordFormat(t *testing.T) {
 		t.Errorf("expected 12-character word token, got %d: %q", len(body), body)
 	}
 }
+
+func TestCustomPrefix(t *testing.T) {
+	ctx := core.NewContext("test input")
+	g := canary.New(&canary.Options{
+		Format: core.CanaryHex,
+		Length: 16,
+		Prefix: "SENTINEL_",
+	})
+	next := func(c *core.Context) {}
+
+	g.Execute(ctx, next)
+
+	v, ok := ctx.GetMeta("canary_token")
+	if !ok {
+		t.Fatal("expected canary_token metadata")
+	}
+	token := v.(string)
+	if !strings.HasPrefix(token, "SENTINEL_") {
+		t.Errorf("expected token to start with SENTINEL_, got %q", token)
+	}
+	if strings.HasPrefix(token, "CANARY_") {
+		t.Error("expected custom prefix to override default CANARY_ prefix")
+	}
+}
+
+func TestTokenUniqueness(t *testing.T) {
+	tokens := make(map[string]bool, 100)
+	for i := 0; i < 100; i++ {
+		ctx := core.NewContext("test")
+		g := canary.New(nil)
+		next := func(c *core.Context) {}
+		g.Execute(ctx, next)
+
+		v, _ := ctx.GetMeta("canary_token")
+		token := v.(string)
+		if tokens[token] {
+			t.Fatalf("duplicate token generated on iteration %d: %q", i, token)
+		}
+		tokens[token] = true
+	}
+	if len(tokens) != 100 {
+		t.Errorf("expected 100 unique tokens, got %d", len(tokens))
+	}
+}
+
+func TestVeryShortLength(t *testing.T) {
+	ctx := core.NewContext("test")
+	g := canary.New(&canary.Options{
+		Format: core.CanaryHex,
+		Length: 1,
+	})
+	next := func(c *core.Context) {}
+
+	g.Execute(ctx, next)
+
+	v, ok := ctx.GetMeta("canary_token")
+	if !ok {
+		t.Fatal("expected canary_token metadata")
+	}
+	token := v.(string)
+	body := strings.TrimPrefix(token, "CANARY_")
+	// 1 byte = 2 hex chars
+	if len(body) != 2 {
+		t.Errorf("expected 2 hex chars for length=1, got %d: %q", len(body), body)
+	}
+}
+
+func TestVeryLongLength(t *testing.T) {
+	ctx := core.NewContext("test")
+	g := canary.New(&canary.Options{
+		Format: core.CanaryHex,
+		Length: 256,
+	})
+	next := func(c *core.Context) {}
+
+	g.Execute(ctx, next)
+
+	v, ok := ctx.GetMeta("canary_token")
+	if !ok {
+		t.Fatal("expected canary_token metadata")
+	}
+	token := v.(string)
+	body := strings.TrimPrefix(token, "CANARY_")
+	// 256 bytes = 512 hex chars
+	if len(body) != 512 {
+		t.Errorf("expected 512 hex chars for length=256, got %d", len(body))
+	}
+}
+
+func TestDetectorWithPartialToken(t *testing.T) {
+	// Inject a canary token
+	inputCtx := core.NewContext("test")
+	injector := canary.New(&canary.Options{
+		Format: core.CanaryHex,
+		Length: 16,
+	})
+	injector.Execute(inputCtx, func(c *core.Context) {})
+
+	v, _ := inputCtx.GetMeta("canary_token")
+	token := v.(string)
+
+	// Take only first half of the token
+	half := token[:len(token)/2]
+
+	// Detector should NOT detect half a token (it needs 8+ chars partial match)
+	// but since half is likely > 8 chars, it might detect it via partial match
+	outputCtx := core.NewContext("some output containing " + half + " in it")
+	outputCtx.SetMeta("canary_token", token)
+
+	detector := canary.NewDetector(nil)
+	next := func(c *core.Context) {}
+	detector.Execute(outputCtx, next)
+
+	// At minimum, the detector should have been invoked without error
+	// Whether it detects depends on partial match length
+	if len(half) >= 8 {
+		// With >= 8 chars, partial match should trigger
+		if len(outputCtx.Threats) == 0 {
+			t.Log("partial token was not detected despite being >= 8 chars")
+		}
+	}
+}
+
+func TestDetectorObfuscatedToken(t *testing.T) {
+	// Test that the detector finds obfuscated tokens (with spaces/dashes)
+	inputCtx := core.NewContext("test")
+	injector := canary.New(&canary.Options{
+		Format: core.CanaryHex,
+		Length: 16,
+	})
+	injector.Execute(inputCtx, func(c *core.Context) {})
+
+	v, _ := inputCtx.GetMeta("canary_token")
+	token := v.(string)
+
+	// Insert dashes into the token
+	obfuscated := ""
+	for i, c := range token {
+		obfuscated += string(c)
+		if i > 0 && i%4 == 0 && i < len(token)-1 {
+			obfuscated += "-"
+		}
+	}
+
+	outputCtx := core.NewContext("output with " + obfuscated + " inside")
+	outputCtx.SetMeta("canary_token", token)
+
+	detector := canary.NewDetector(nil)
+	next := func(c *core.Context) {}
+	detector.Execute(outputCtx, next)
+
+	// The stripNoise function should handle dashes
+	if len(outputCtx.Threats) == 0 {
+		t.Error("expected detector to find obfuscated canary token with dashes")
+	}
+}

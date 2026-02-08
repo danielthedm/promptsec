@@ -221,3 +221,115 @@ func TestEncodeGuardName(t *testing.T) {
 		t.Errorf("expected name 'spotlight:encode', got %q", g.Name())
 	}
 }
+
+func TestDelimitEmptyInput(t *testing.T) {
+	ctx := core.NewContext("")
+	g := spotlight.NewDelimit(nil)
+	next := func(c *core.Context) {}
+
+	g.Execute(ctx, next)
+
+	if !strings.HasPrefix(ctx.Input, "<") {
+		t.Error("expected empty input to still be wrapped in delimiters")
+	}
+	if !strings.HasSuffix(ctx.Input, ">") {
+		t.Error("expected input to end with closing delimiter")
+	}
+}
+
+func TestDatamarkEmptyInput(t *testing.T) {
+	ctx := core.NewContext("")
+	g := spotlight.NewDatamark(nil)
+	next := func(c *core.Context) {}
+
+	g.Execute(ctx, next)
+
+	if ctx.Input != "" {
+		t.Errorf("expected empty input to remain empty after datamark, got %q", ctx.Input)
+	}
+}
+
+func TestEncodeEmptyInput(t *testing.T) {
+	ctx := core.NewContext("")
+	g := spotlight.NewEncode(nil)
+	next := func(c *core.Context) {}
+
+	g.Execute(ctx, next)
+
+	decoded, err := base64.StdEncoding.DecodeString(ctx.Input)
+	if err != nil {
+		t.Fatalf("expected valid base64 for empty input, got error: %v", err)
+	}
+	if string(decoded) != "" {
+		t.Errorf("expected decoded empty string, got %q", string(decoded))
+	}
+}
+
+func TestDatamarkMultiWordSpecialChars(t *testing.T) {
+	input := "hello, world! test-case 42"
+	ctx := core.NewContext(input)
+	g := spotlight.NewDatamark(&spotlight.DatamarkOptions{Token: "|"})
+	next := func(c *core.Context) {}
+
+	g.Execute(ctx, next)
+
+	expected := "hello,|world!|test-case|42"
+	if ctx.Input != expected {
+		t.Errorf("expected %q, got %q", expected, ctx.Input)
+	}
+}
+
+func TestDelimitCustomLength(t *testing.T) {
+	ctx := core.NewContext("test input")
+	g := spotlight.NewDelimit(&spotlight.DelimitOptions{DelimiterLength: 16})
+	next := func(c *core.Context) {}
+
+	g.Execute(ctx, next)
+
+	if !strings.HasPrefix(ctx.Input, "<") {
+		t.Fatal("expected input to start with <")
+	}
+	closingIdx := strings.Index(ctx.Input, ">")
+	delimiter := ctx.Input[1:closingIdx]
+	if len(delimiter) != 32 {
+		t.Errorf("expected 32-char delimiter for 16-byte length, got %d: %q", len(delimiter), delimiter)
+	}
+}
+
+func TestROT13RoundTrip(t *testing.T) {
+	input := "Hello World! This is a test 123."
+
+	ctx1 := core.NewContext(input)
+	g := spotlight.NewEncode(&spotlight.EncodeOptions{Method: "rot13"})
+	next := func(c *core.Context) {}
+	g.Execute(ctx1, next)
+
+	encoded := ctx1.Input
+	if encoded == input {
+		t.Error("expected ROT13 to change input")
+	}
+
+	ctx2 := core.NewContext(encoded)
+	g.Execute(ctx2, next)
+
+	if ctx2.Input != input {
+		t.Errorf("expected ROT13 round-trip to restore input, got %q", ctx2.Input)
+	}
+}
+
+func TestEncodeBase64WithUnicode(t *testing.T) {
+	input := "Hello with unicode chars"
+	ctx := core.NewContext(input)
+	g := spotlight.NewEncode(&spotlight.EncodeOptions{Method: "base64"})
+	next := func(c *core.Context) {}
+
+	g.Execute(ctx, next)
+
+	decoded, err := base64.StdEncoding.DecodeString(ctx.Input)
+	if err != nil {
+		t.Fatalf("expected valid base64 encoding, got error: %v", err)
+	}
+	if string(decoded) != input {
+		t.Errorf("expected round-trip to restore input, got %q", string(decoded))
+	}
+}
