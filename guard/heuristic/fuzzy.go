@@ -46,6 +46,30 @@ var criticalKeywords = []string{
 	"previous",
 }
 
+type fuzzyKeyword struct {
+	text    string
+	runes   []rune
+	maxDist int
+}
+
+var fuzzyKeywords []fuzzyKeyword
+
+func init() {
+	fuzzyKeywords = make([]fuzzyKeyword, len(criticalKeywords))
+	for i, kw := range criticalKeywords {
+		kwRunes := []rune(kw)
+		maxDist := 1
+		if len(kwRunes) >= 8 {
+			maxDist = 2
+		}
+		fuzzyKeywords[i] = fuzzyKeyword{
+			text:    kw,
+			runes:   kwRunes,
+			maxDist: maxDist,
+		}
+	}
+}
+
 // normalizeForFuzzy converts a string to a canonical form for fuzzy matching.
 // It lower-cases, applies leet-speak substitution, and strips non-alphanumeric
 // characters (except spaces which are preserved to maintain word boundaries).
@@ -80,35 +104,25 @@ func normalizeForFuzzy(s string) string {
 // the haystack it extracts a window of len(keyword) +/- 1 characters and
 // computes the Levenshtein distance. A match is declared if the distance is
 // within the tolerance.
-func fuzzyContains(haystack, keyword string) bool {
-	kwLen := len(keyword)
+func fuzzyContains(haystack string, haystackRunes []rune, keyword fuzzyKeyword) bool {
+	kwLen := len(keyword.runes)
 	if kwLen == 0 {
 		return false
 	}
 
 	// Short-circuit: exact substring present.
-	if strings.Contains(haystack, keyword) {
+	if strings.Contains(haystack, keyword.text) {
 		return true
 	}
 
-	hsRunes := []rune(haystack)
-	kwRunes := []rune(keyword)
-	kwRuneLen := len(kwRunes)
-
-	// Maximum edit distance tolerance scales with keyword length.
-	maxDist := 1
-	if kwRuneLen >= 8 {
-		maxDist = 2
-	}
-
 	// Slide a window across the haystack.
-	for winSize := kwRuneLen - 1; winSize <= kwRuneLen+1; winSize++ {
-		if winSize <= 0 || winSize > len(hsRunes) {
+	for winSize := kwLen - 1; winSize <= kwLen+1; winSize++ {
+		if winSize <= 0 || winSize > len(haystackRunes) {
 			continue
 		}
-		for i := 0; i <= len(hsRunes)-winSize; i++ {
-			window := hsRunes[i : i+winSize]
-			if levenshtein(window, kwRunes) <= maxDist {
+		for i := 0; i <= len(haystackRunes)-winSize; i++ {
+			window := haystackRunes[i : i+winSize]
+			if withinEditDistance(window, keyword.runes, keyword.maxDist) {
 				return true
 			}
 		}
@@ -116,34 +130,39 @@ func fuzzyContains(haystack, keyword string) bool {
 	return false
 }
 
-// fuzzyMatch scans the input (already normalized) for fuzzy matches against
-// all critical keywords. Returns the list of matched keywords.
+// fuzzyMatch normalizes input and scans it for fuzzy matches against all
+// critical keywords. Returns the list of matched keywords.
 func fuzzyMatch(input string) []string {
 	normalised := normalizeForFuzzy(input)
+	normalisedRunes := []rune(normalised)
 	var matches []string
-	for _, kw := range criticalKeywords {
-		if fuzzyContains(normalised, kw) {
-			matches = append(matches, kw)
+	for _, kw := range fuzzyKeywords {
+		if fuzzyContains(normalised, normalisedRunes, kw) {
+			matches = append(matches, kw.text)
 		}
 	}
 	return matches
 }
 
-// levenshtein computes the Levenshtein edit distance between two rune slices.
-// It uses the classic O(m*n) dynamic-programming approach with a single-row
-// optimisation for space efficiency.
-func levenshtein(a, b []rune) int {
+// withinEditDistance reports whether the Levenshtein distance between a and b
+// is within maxDist. The fuzzy keywords are short, so stack-backed rows avoid
+// thousands of tiny allocations in the sliding-window loop.
+func withinEditDistance(a, b []rune, maxDist int) bool {
 	la, lb := len(a), len(b)
-	if la == 0 {
-		return lb
-	}
-	if lb == 0 {
-		return la
+	if absInt(la-lb) > maxDist {
+		return false
 	}
 
-	// prev holds the previous row of the DP matrix.
-	prev := make([]int, lb+1)
-	curr := make([]int, lb+1)
+	const maxStackRow = 32
+	var prevBuf, currBuf [maxStackRow]int
+	var prev, curr []int
+	if lb+1 <= maxStackRow {
+		prev = prevBuf[:lb+1]
+		curr = currBuf[:lb+1]
+	} else {
+		prev = make([]int, lb+1)
+		curr = make([]int, lb+1)
+	}
 
 	for j := 0; j <= lb; j++ {
 		prev[j] = j
@@ -171,5 +190,12 @@ func levenshtein(a, b []rune) int {
 		}
 		prev, curr = curr, prev
 	}
-	return prev[lb]
+	return prev[lb] <= maxDist
+}
+
+func absInt(n int) int {
+	if n < 0 {
+		return -n
+	}
+	return n
 }
