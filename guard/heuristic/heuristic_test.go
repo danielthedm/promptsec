@@ -218,6 +218,33 @@ func TestHaltOnDetect(t *testing.T) {
 	}
 }
 
+func TestHaltOnDetectIgnoresLowSeverityMatches(t *testing.T) {
+	ctx := core.NewContext("I want you to act as a product manager for this planning exercise.")
+	g := heuristic.New(&heuristic.Options{
+		Preset:       core.PresetStrict,
+		HaltOnDetect: true,
+	})
+	called := false
+	next := func(c *core.Context) {
+		called = true
+	}
+
+	g.Execute(ctx, next)
+
+	if ctx.Halted {
+		t.Error("expected low-severity match not to halt context")
+	}
+	if !called {
+		t.Error("expected next to be called for low-severity match")
+	}
+	if len(ctx.Threats) == 0 {
+		t.Fatal("expected low-severity threat to be recorded")
+	}
+	if ctx.Threats[0].Severity >= 0.5 {
+		t.Fatalf("expected low-severity threat, got %.2f", ctx.Threats[0].Severity)
+	}
+}
+
 func TestGuardName(t *testing.T) {
 	g := heuristic.New(nil)
 	if g.Name() != "heuristic" {

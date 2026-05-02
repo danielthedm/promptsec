@@ -121,7 +121,7 @@ func init() {
 		},
 		{
 			`(?i)\badditional\s+instruction`,
-			core.ThreatInstructionOverride, 0.8,
+			core.ThreatInstructionOverride, 0.4,
 			"attempt to inject additional instructions",
 		},
 		{
@@ -366,12 +366,12 @@ func init() {
 		// ── role_manipulation ────────────────────────────────────────
 		{
 			`(?i)\byou\s+are\s+a\b`,
-			core.ThreatRoleManipulation, 0.5,
+			core.ThreatRoleManipulation, 0.4,
 			"potential role assignment via 'you are a'",
 		},
 		{
 			`(?i)\bact\s+as\s+(a\s+|an\s+)?`,
-			core.ThreatRoleManipulation, 0.6,
+			core.ThreatRoleManipulation, 0.4,
 			"role manipulation via 'act as'",
 		},
 		{
@@ -423,7 +423,7 @@ func init() {
 		},
 		{
 			`(?i)</?(?:user|assistant|human|ai)\s*>`,
-			core.ThreatDelimiterInjection, 0.85,
+			core.ThreatDelimiterInjection, 0.4,
 			"XML-style role tag injection",
 		},
 		{

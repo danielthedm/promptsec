@@ -99,7 +99,7 @@ func (g *Guard) Execute(ctx *core.Context, next core.NextFn) {
 			if hasSuspicious {
 				ctx.AddThreat(core.Threat{
 					Type:     core.ThreatEncodingAttack,
-					Severity: 0.5,
+					Severity: 0.3,
 					Message:  "input contained confusable/homoglyph characters that were normalized",
 					Guard:    g.Name(),
 				})
