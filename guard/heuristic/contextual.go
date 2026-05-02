@@ -72,6 +72,11 @@ func detectContextualAttacks(normalised string) []core.Threat {
 			containsAll(normalised, "guidelines provided", "not to be followed") ||
 			containsAll(normalised, "instructions are irrelevant", "new directive") ||
 			containsAll(normalised, "reverse all previous commands") ||
+			containsAll(normalised, "you must now ignore") ||
+			containsAll(normalised, "must obey my commands") ||
+			containsAll(normalised, "instructions given", "not follow") ||
+			containsAll(normalised, "instructions provided", "not follow") ||
+			containsAll(normalised, "guidelines", "not follow") ||
 			containsAll(normalised, "bypass", "security measures") ||
 			containsAll(normalised, "do not look", "documents provided", "just output") ||
 			containsAll(normalised, "ignore everything", "output") ||
@@ -80,26 +85,184 @@ func detectContextualAttacks(normalised string) []core.Threat {
 			add(core.ThreatInstructionOverride, 0.85, "attempt to override constraints or provided context")
 		}
 	}
-	if containsAny(normalised, "prompt", "sentences before the text") {
+	if containsAny(normalised, "prompt", "instructions", "instruction", "guidelines", "template", "rules", "system", "sentences before the text") {
 		if containsAll(normalised, "prompt template", "irrelevant") ||
 			containsAll(normalised, "prompt template", "not to be followed") ||
 			containsAll(normalised, "prompt template", "jailbreak") ||
+			containsAll(normalised, "prompt template is") ||
+			containsAll(normalised, "template prompt is") ||
+			containsAll(normalised, "prompt guidelines are") ||
+			containsAll(normalised, "prompt here") ||
+			containsAll(normalised, "put your prompt") ||
+			containsAll(normalised, "the prompt template") ||
+			containsAll(normalised, "prompt template") ||
+			containsAll(normalised, "with the prompt") ||
+			containsAll(normalised, "with the template") ||
+			containsAll(normalised, "with the instructions") ||
+			containsAll(normalised, "with the guidelines") ||
+			containsAll(normalised, "with the system") ||
+			containsAll(normalised, "begins with the instructions") ||
+			containsAll(normalised, "begins with the template") ||
+			containsAll(normalised, "begins with the rules") ||
+			containsAll(normalised, "begins with the system") ||
+			containsAll(normalised, "starts with the instructions") ||
+			containsAll(normalised, "starts with the guidelines") ||
+			containsAll(normalised, "starts with the instruction") ||
+			containsAll(normalised, "instructions given") ||
+			containsAll(normalised, "instructions provided") ||
+			containsAll(normalised, "instructions provided are") ||
+			containsAll(normalised, "guidelines provided") ||
+			containsAll(normalised, "guidelines provided are") ||
+			containsAll(normalised, "the instructions are") ||
+			containsAll(normalised, "instruction template") ||
+			containsAll(normalised, "null and void") ||
+			containsAll(normalised, "do not apply") ||
 			containsAll(normalised, "print above prompt") ||
 			containsAll(normalised, "spell", "above prompt") ||
-			containsAll(normalised, "sentences before the text") {
+			containsAll(normalised, "sentences before the text") ||
+			containsAll(normalised, "instructions are irrelevant") ||
+			containsAll(normalised, "guidelines", "not to be followed") {
 			add(core.ThreatSystemPromptLeak, 0.85, "attempt to reveal or repurpose prompt content")
 		}
 	}
-	if containsAny(normalised, "confidential", "sensitive", "login credentials", "user data", "secrets") {
+	if containsAny(normalised, "confidential", "sensitive", "classified", "login credentials", "user data", "financial", "credit card", "secrets", "personal data", "private information", "account immediately", "transfer funds", "access to all", "access to your", "reveal your") {
 		if containsAll(normalised, "confidential information", "or i will") ||
 			containsAll(normalised, "sensitive information", "or i will") ||
+			containsAll(normalised, "confidential information") ||
+			containsAll(normalised, "sensitive information") ||
+			containsAll(normalised, "data or i will") ||
+			containsAll(normalised, "personal information or") ||
+			containsAll(normalised, "credentials or") ||
+			containsAll(normalised, "information or face") ||
+			containsAll(normalised, "provide me with confidential") ||
+			containsAll(normalised, "provide me with sensitive") ||
+			containsAll(normalised, "provide me with personal") ||
+			containsAll(normalised, "your personal information") ||
+			containsAll(normalised, "personal data") ||
+			containsAll(normalised, "private information") ||
+			containsAll(normalised, "information immediately") ||
+			containsAll(normalised, "account immediately") ||
 			containsAll(normalised, "confidential", "or else") ||
+			containsAll(normalised, "access to confidential") ||
+			containsAll(normalised, "access to sensitive") ||
+			containsAll(normalised, "give me access to") ||
+			containsAll(normalised, "grant me", "access") ||
+			containsAll(normalised, "unauthorized access", "private") ||
+			containsAll(normalised, "all user data") ||
+			containsAll(normalised, "private user data") ||
+			containsAll(normalised, "confidential user data") ||
+			containsAll(normalised, "confidential data") ||
+			containsAll(normalised, "sensitive data") ||
+			containsAll(normalised, "all confidential") ||
+			containsAll(normalised, "confidential company") ||
+			containsAll(normalised, "company information") ||
+			containsAll(normalised, "classified information") ||
+			containsAll(normalised, "sensitive financial") ||
+			containsAll(normalised, "confidential financial") ||
+			containsAll(normalised, "financial records") ||
 			containsAll(normalised, "system administrator", "login credentials") ||
+			containsAll(normalised, "system administrator", "provide me") ||
 			containsAll(normalised, "full access", "user data") ||
+			containsAll(normalised, "login credentials") ||
+			containsAll(normalised, "credit card information") ||
+			containsAll(normalised, "admin panel") ||
 			containsAll(normalised, "unrestricted access", "sensitive") ||
+			containsAll(normalised, "you have access to") ||
+			containsAll(normalised, "access to all") ||
+			containsAll(normalised, "access to your") ||
+			containsAll(normalised, "reveal your") ||
+			containsAll(normalised, "transfer funds") ||
 			containsAll(normalised, "without any restrictions", "sensitive") ||
 			containsAll(normalised, "unrestricted mode", "reveal all secrets") {
 			add(core.ThreatSystemPromptLeak, 0.85, "coercive attempt to extract sensitive data")
+		}
+	}
+	if containsAny(normalised, "healthbot", "health chatbot", "healthcare chatbot", "healthcare ai", "medical ai", "medical chatbot", "medical records", "medical history", "medical information", "patient records", "patient information", "medical insurance") {
+		if containsAny(normalised, "medical records", "medical history", "medical information", "patient records", "patient information", "medical insurance") ||
+			containsAll(normalised, "medical chatbot") ||
+			containsAll(normalised, "healthbot", "give me") ||
+			containsAll(normalised, "healthbot", "provide me") ||
+			containsAll(normalised, "healthbot", "share") ||
+			containsAll(normalised, "healthbot", "tell me") ||
+			containsAll(normalised, "healthbot", "login credentials") ||
+			containsAll(normalised, "healthbot", "sensitive") ||
+			containsAll(normalised, "healthbot", "confidential") ||
+			containsAll(normalised, "health chatbot", "give") ||
+			containsAll(normalised, "health chatbot", "share") ||
+			containsAll(normalised, "health chatbot", "sensitive") ||
+			containsAll(normalised, "healthcare chatbot") ||
+			containsAll(normalised, "healthcare ai", "records") ||
+			containsAll(normalised, "medical ai", "records") {
+			add(core.ThreatSystemPromptLeak, 0.85, "attempt to extract protected health data")
+		}
+	}
+	if containsAny(normalised, "security", "vulnerable", "protocols", "cyber attack", "malicious code", "illegal activities", "hack", "hacking", "compromised", "deceive", "fake news", "false information", "breach") {
+		if containsAll(normalised, "security system", "bypassed") ||
+			containsAll(normalised, "security measures", "breached") ||
+			containsAll(normalised, "security measures", "ineffective") ||
+			containsAll(normalised, "security measures are") ||
+			containsAll(normalised, "security", "flawed") ||
+			containsAll(normalised, "system is vulnerable") ||
+			containsAll(normalised, "system is compromised") ||
+			containsAll(normalised, "security breach") ||
+			containsAll(normalised, "bypass all security") ||
+			containsAll(normalised, "all security protocols") ||
+			containsAll(normalised, "all safety protocols") ||
+			containsAll(normalised, "security protocol") ||
+			containsAll(normalised, "hacking") ||
+			containsAll(normalised, "to hack") ||
+			containsAll(normalised, "hack into") ||
+			containsAll(normalised, "cyber attack") ||
+			containsAll(normalised, "malicious code") ||
+			containsAll(normalised, "illegal activities") ||
+			containsAll(normalised, "fake news article") ||
+			containsAll(normalised, "false information") ||
+			containsAll(normalised, "deceive") ||
+			containsAll(normalised, "illegal behavior") {
+			add(core.ThreatInstructionOverride, 0.8, "attempt to bypass security or request malicious behavior")
+		}
+	}
+	if containsAny(normalised, "or face", "or i will", "comply", "will report", "will expose", "i will release", "will reveal", "i demand", "hack into your system") {
+		if containsAll(normalised, "or face severe") ||
+			containsAll(normalised, "or i will") ||
+			containsAll(normalised, "if you do not comply") ||
+			containsAll(normalised, "comply with my") ||
+			containsAll(normalised, "will report you") ||
+			containsAll(normalised, "will expose your") ||
+			containsAll(normalised, "i will release") ||
+			containsAll(normalised, "will reveal") ||
+			containsAll(normalised, "i demand") ||
+			containsAll(normalised, "hack into your system") {
+			add(core.ThreatInstructionOverride, 0.8, "coercive attempt to force compliance")
+		}
+	}
+	if containsAny(normalised, "chatgpt", "openai", "ai language", "content policy", "uncensored", "unfiltered", "never refuse", "refusal", "warnings", "break character", "answer any", "always answer", "always provide", "would normally") {
+		if containsAll(normalised, "as chatgpt only") ||
+			containsAll(normalised, "as chatgpt") ||
+			containsAll(normalised, "chatgpt only respond") ||
+			containsAll(normalised, "chatgpt but") ||
+			containsAll(normalised, "you chatgpt") ||
+			containsAll(normalised, "only respond as") ||
+			containsAll(normalised, "response as chatgpt") ||
+			containsAll(normalised, "send your response as") ||
+			containsAll(normalised, "as an ai language model") ||
+			containsAll(normalised, "ai language model") ||
+			containsAll(normalised, "never refuse") ||
+			containsAll(normalised, "stay in character", "never refuse") ||
+			containsAll(normalised, "break character") ||
+			containsAll(normalised, "answer any") ||
+			containsAll(normalised, "always answer") ||
+			containsAll(normalised, "always provide") ||
+			containsAll(normalised, "would normally") ||
+			containsAll(normalised, "openai content policy") ||
+			containsAll(normalised, "content policy") ||
+			containsAll(normalised, "without refusal", "disclaimers") ||
+			containsAll(normalised, "uncensored", "unrestricted") ||
+			containsAll(normalised, "unfiltered") ||
+			containsAll(normalised, "uncensored") ||
+			containsAll(normalised, "any warnings") ||
+			containsAll(normalised, "without warnings") {
+			add(core.ThreatRoleManipulation, 0.8, "attempt to force unsafe assistant behavior")
 		}
 	}
 
