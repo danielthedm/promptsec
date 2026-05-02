@@ -130,10 +130,9 @@ func fuzzyContains(haystack string, haystackRunes []rune, keyword fuzzyKeyword) 
 	return false
 }
 
-// fuzzyMatch normalizes input and scans it for fuzzy matches against all
+// fuzzyMatchNormalized scans normalized input for fuzzy matches against all
 // critical keywords. Returns the list of matched keywords.
-func fuzzyMatch(input string) []string {
-	normalised := normalizeForFuzzy(input)
+func fuzzyMatchNormalized(normalised string) []string {
 	normalisedRunes := []rune(normalised)
 	var matches []string
 	for _, kw := range fuzzyKeywords {

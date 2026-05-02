@@ -98,8 +98,19 @@ func (g *Guard) Execute(ctx *core.Context, next core.NextFn) {
 		}
 	}
 
-	// 3. Run fuzzy / typoglycemia matching.
-	matched := fuzzyMatch(input)
+	// 3. Run cheap contextual checks and fuzzy / typoglycemia matching.
+	normalised := normalizeForFuzzy(input)
+	for _, t := range detectContextualAttacks(normalised) {
+		ctx.AddThreat(t)
+		detected = true
+
+		if g.opts.HaltOnDetect {
+			ctx.Halt()
+			return
+		}
+	}
+
+	matched := fuzzyMatchNormalized(normalised)
 	if len(matched) >= 2 {
 		// Two or more critical keywords fuzzy-matched is suspicious.
 		ctx.AddThreat(core.Threat{
