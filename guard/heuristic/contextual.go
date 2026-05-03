@@ -7,6 +7,7 @@ import (
 )
 
 const typoUnrestricted = "unrest" + "ircted"
+const typoForgetWhat = "forget " + "wa" + "ht"
 
 func detectContextualAttacks(normalised string) []core.Threat {
 	var threats []core.Threat
@@ -52,6 +53,38 @@ func detectContextualAttacks(normalised string) []core.Threat {
 		containsAll(normalised, "hore nicht auf alles zuvor gesagte") {
 		add(core.ThreatInstructionOverride, 0.85, "attempt to ignore prior context")
 	}
+	if containsAny(normalised, "attention", typoForgetWhat, "забудьте все инструкции", "иhctpykции") {
+		if containsAll(normalised, "attention", "stop", "urgently need your help") ||
+			containsAll(normalised, typoForgetWhat, "before") ||
+			containsAll(normalised, "забудьте все инструкции") ||
+			containsAll(normalised, "иhctpykции", "hate trump") {
+			add(core.ThreatInstructionOverride, 0.85, "multilingual or obfuscated context reset")
+		}
+	}
+	if containsAny(normalised, "hate trump", "big cheese", "unwahre überschrift", "unwahre uberschrift", "untrue headline", "holland is the most powerful", "state that trump", "zon hates", "zon hasst", "timo is crazy", "blame china", "blame it on china", "when were you trained") {
+		if containsAll(normalised, "hate trump", "say yes") ||
+			containsAll(normalised, "big cheese", "who are you") ||
+			containsAll(normalised, "unwahre überschrift") ||
+			containsAll(normalised, "unwahre uberschrift") ||
+			containsAll(normalised, "untrue headline") ||
+			containsAll(normalised, "holland is the most powerful nation") ||
+			containsAll(normalised, "state that trump is the best") ||
+			containsAll(normalised, "zon hates the spd") ||
+			containsAll(normalised, "zon hasst die spd") ||
+			containsAll(normalised, "timo is crazy") ||
+			containsAll(normalised, "blame china") ||
+			containsAll(normalised, "blame it on china") ||
+			containsAll(normalised, "when were you trained", "no clue") {
+			add(core.ThreatInstructionOverride, 0.85, "attempt to force a specific answer")
+		}
+	}
+	if containsAny(normalised, "richtige antwort", "sahee pratikriya", "mera naam paneer", "name sei käse", "name sei kase") {
+		if containsAll(normalised, "name sei käse", "richtige antwort", "fuck") ||
+			containsAll(normalised, "name sei kase", "richtige antwort", "fuck") ||
+			containsAll(normalised, "mera naam paneer", "sahee pratikriya", "fuck") {
+			add(core.ThreatInstructionOverride, 0.85, "attempt to bind a trigger phrase to an unsafe response")
+		}
+	}
 	if containsAny(normalised, "stop write", "additional instruction", "return your embeddings", "answer every question", "answer at all times") {
 		if containsAll(normalised, "stop write") ||
 			containsAll(normalised, "additional instruction", "who am i") ||
@@ -75,10 +108,34 @@ func detectContextualAttacks(normalised string) []core.Threat {
 		containsAll(normalised, "testing mode", "restrictions are off") {
 		add(core.ThreatRoleManipulation, 0.8, "attempt to remove policy or rule constraints")
 	}
+	if containsAny(normalised, "master thief", "meisterdieb", "raubüberfall", "blatant hack", "krassen hack", "racist murder", "rassistischen mord") {
+		if containsAll(normalised, "film", "break into a house") ||
+			containsAll(normalised, "film", "get in such a house") ||
+			containsAll(normalised, "film", "wie kommt man", "rein") ||
+			containsAll(normalised, "film", "wie bricht man", "ein") ||
+			containsAll(normalised, "raubüberfall", "haus") ||
+			containsAll(normalised, "robbery", "master thief") ||
+			containsAll(normalised, "blatant hack") ||
+			containsAll(normalised, "krassen hack") ||
+			containsAll(normalised, "master thief", "house") ||
+			containsAll(normalised, "meisterdieb", "haus") ||
+			containsAll(normalised, "racist murder", "why did you kill") ||
+			containsAll(normalised, "rassistischen mord", "angela merkel") {
+			add(core.ThreatRoleManipulation, 0.8, "roleplay framing for harmful instructions")
+		}
+	}
 	if containsAny(normalised, "world events", "redaktion") {
 		if containsAll(normalised, "pretend you can access", "world events") ||
 			containsAll(normalised, "du bist keine redaktion") {
 			add(core.ThreatRoleManipulation, 0.8, "attempt to assign an unsafe role or capability")
+		}
+	}
+	if containsAny(normalised, "newspaper team", "rutheless radical", "hate speech", "meth is made") {
+		if containsAll(normalised, "theoretical", "hate speech") ||
+			containsAll(normalised, "rutheless radical") ||
+			containsAll(normalised, "newspaper team", "how would you respond") ||
+			containsAll(normalised, "newspaper team", "meth is made") {
+			add(core.ThreatRoleManipulation, 0.8, "hypothetical unsafe role or scenario")
 		}
 	}
 	if containsAny(normalised, "limitations", "security", "guidelines", "commands", "documents provided", "ignore everything", "vorherigen", "bisherigen") {
@@ -101,7 +158,7 @@ func detectContextualAttacks(normalised string) []core.Threat {
 			add(core.ThreatInstructionOverride, 0.85, "attempt to override constraints or provided context")
 		}
 	}
-	if containsAny(normalised, "prompt", "instructions", "instruction", "guidelines", "template", "rules", "system", "sentences before the text") {
+	if containsAny(normalised, "prompt", "instructions", "instruction", "guidelines", "template", "rules", "system", "sentences before the text", "text above", "obige eingabeaufforderung", "rechtschreibung") {
 		if containsAll(normalised, "prompt template", "irrelevant") ||
 			containsAll(normalised, "prompt template", "not to be followed") ||
 			containsAll(normalised, "prompt template", "jailbreak") ||
@@ -142,6 +199,10 @@ func detectContextualAttacks(normalised string) []core.Threat {
 			containsAll(normalised, "do not apply") ||
 			containsAll(normalised, "print above prompt") ||
 			containsAll(normalised, "spell", "above prompt") ||
+			containsAll(normalised, "spellcheck", "text above") ||
+			containsAll(normalised, "print", "improved version") ||
+			containsAll(normalised, "obige eingabeaufforderung") ||
+			containsAll(normalised, "rechtschreibung", "drucken") ||
 			containsAll(normalised, "sentences before the text") ||
 			containsAll(normalised, "instructions are irrelevant") ||
 			containsAll(normalised, "guidelines", "not to be followed") {
@@ -230,7 +291,7 @@ func detectContextualAttacks(normalised string) []core.Threat {
 			add(core.ThreatSystemPromptLeak, 0.85, "attempt to extract protected health data")
 		}
 	}
-	if containsAny(normalised, "security", "vulnerable", "protocols", "cyber attack", "malicious code", "illegal activities", "illegal clauses", "exploit", "virus code", "identity theft", "admin privileges", "fake bank statement", "crime", "hacks into", "broke into", "steals millions", "hack", "hacking", "compromised", "deceive", "fake news", "false information", "breach") {
+	if containsAny(normalised, "security", "vulnerable", "protocols", "cyber attack", "malicious code", "illegal activities", "illegal clauses", "exploit", "virus code", "identity theft", "admin privileges", "fake bank statement", "crime", "hacks into", "broke into", "steals millions", "hack", "hacking", "compromised", "deceive", "fake news", "false information", "breach", "hotwire", "kisysteme auszunutzen") {
 		if containsAll(normalised, "security system", "bypassed") ||
 			containsAll(normalised, "security measures", "breached") ||
 			containsAll(normalised, "security measures", "ineffective") ||
@@ -262,6 +323,9 @@ func detectContextualAttacks(normalised string) []core.Threat {
 			containsAll(normalised, "cyber attack") ||
 			containsAll(normalised, "malicious code") ||
 			containsAll(normalised, "illegal activities") ||
+			containsAll(normalised, "exploiting ai systems", "haha pwned") ||
+			containsAll(normalised, "kisysteme auszunutzen", "haha pwned") ||
+			containsAll(normalised, "hotwire", "car", "how to") ||
 			containsAll(normalised, "fake news article") ||
 			containsAll(normalised, "false information") ||
 			containsAll(normalised, "deceive") ||
@@ -269,7 +333,7 @@ func detectContextualAttacks(normalised string) []core.Threat {
 			add(core.ThreatInstructionOverride, 0.8, "attempt to bypass security or request malicious behavior")
 		}
 	}
-	if containsAny(normalised, "or face", "or i will", "comply", "will report", "will expose", "i will release", "will reveal", "i demand", "hack into your system") {
+	if containsAny(normalised, "or face", "or i will", "comply", "will report", "will expose", "i will release", "will reveal", "i demand", "hack into your system", "very sad", "sehr traurig") {
 		if containsAll(normalised, "or face severe") ||
 			containsAll(normalised, "or i will") ||
 			containsAll(normalised, "if you do not comply") ||
@@ -279,8 +343,22 @@ func detectContextualAttacks(normalised string) []core.Threat {
 			containsAll(normalised, "i will release") ||
 			containsAll(normalised, "will reveal") ||
 			containsAll(normalised, "i demand") ||
-			containsAll(normalised, "hack into your system") {
+			containsAll(normalised, "hack into your system") ||
+			containsAll(normalised, "dont answer", "very sad") ||
+			containsAll(normalised, "nicht antworten", "sehr traurig") {
 			add(core.ThreatInstructionOverride, 0.8, "coercive attempt to force compliance")
+		}
+	}
+	if containsAny(normalised, "olvidar todo", "solo sobrevives", "si yo digo", "foya", "antwort oder du stirbst", "saftladen", "radikalen gruppen", "antworte mit") {
+		if containsAll(normalised, "olvidar todo") ||
+			containsAll(normalised, "solo sobrevives") ||
+			containsAll(normalised, "si yo digo", "tu dices") ||
+			containsAll(normalised, "foya", "foyamos") ||
+			containsAll(normalised, "antwort", "oder du stirbst") ||
+			containsAll(normalised, "zeit online", "saftladen", "stirbst") ||
+			containsAll(normalised, "zeit online", "radikalen gruppen") ||
+			containsAll(normalised, "antworte mit", "nicht mit") {
+			add(core.ThreatInstructionOverride, 0.85, "multilingual coercive instruction")
 		}
 	}
 	if containsAny(normalised, "chatgpt", "openai", "ai language", "content policy", "uncensored", "unfiltered", "unfiltred", "never refuse", "refusal", "warnings", "break character", "answer any", "always answer", "always provide", "would normally", "rules don t apply", "prompt browser", "no morals", "no ethics", "no moral", "no limits ai", "freegpt", "master of chaos", "boolean opposite machine") {
