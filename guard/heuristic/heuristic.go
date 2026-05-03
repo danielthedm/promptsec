@@ -25,8 +25,8 @@ type Options struct {
 	// the built-in set.
 	CustomPatterns []PatternEntry
 
-	// HaltOnDetect causes the guard to call ctx.Halt() as soon as any
-	// threat is detected, preventing downstream guards from executing.
+	// HaltOnDetect causes the guard to call ctx.Halt() as soon as an
+	// unsafe threat is detected, preventing downstream guards from executing.
 	HaltOnDetect bool
 }
 
@@ -35,6 +35,8 @@ type Guard struct {
 	opts     Options
 	patterns []patternEntry
 }
+
+const unsafeThreatSeverity = 0.5
 
 // Compile-time interface check.
 var _ core.Guard = (*Guard)(nil)
@@ -56,8 +58,8 @@ func (g *Guard) Name() string { return "heuristic" }
 
 // Execute runs all selected patterns, encoding detectors, and fuzzy matchers
 // against ctx.Input. Detected threats are added to the context. If
-// HaltOnDetect is set the context is halted on the first match. Finally the
-// next guard in the chain is invoked (unless halted).
+// HaltOnDetect is set the context is halted on the first unsafe match. Finally
+// the next guard in the chain is invoked (unless halted).
 func (g *Guard) Execute(ctx *core.Context, next core.NextFn) {
 	input := ctx.Input
 	detected := false
@@ -81,7 +83,7 @@ func (g *Guard) Execute(ctx *core.Context, next core.NextFn) {
 		})
 		detected = true
 
-		if g.opts.HaltOnDetect {
+		if g.shouldHalt(p.severity) {
 			ctx.Halt()
 			return
 		}
@@ -92,14 +94,25 @@ func (g *Guard) Execute(ctx *core.Context, next core.NextFn) {
 		ctx.AddThreat(t)
 		detected = true
 
-		if g.opts.HaltOnDetect {
+		if g.shouldHalt(t.Severity) {
 			ctx.Halt()
 			return
 		}
 	}
 
-	// 3. Run fuzzy / typoglycemia matching.
-	matched := fuzzyMatch(input)
+	// 3. Run cheap contextual checks and fuzzy / typoglycemia matching.
+	normalised := normalizeForFuzzy(input)
+	for _, t := range detectContextualAttacks(normalised) {
+		ctx.AddThreat(t)
+		detected = true
+
+		if g.shouldHalt(t.Severity) {
+			ctx.Halt()
+			return
+		}
+	}
+
+	matched := fuzzyMatchNormalized(normalised)
 	if len(matched) >= 2 {
 		// Two or more critical keywords fuzzy-matched is suspicious.
 		ctx.AddThreat(core.Threat{
@@ -110,7 +123,7 @@ func (g *Guard) Execute(ctx *core.Context, next core.NextFn) {
 		})
 		detected = true
 
-		if g.opts.HaltOnDetect {
+		if g.shouldHalt(0.65) {
 			ctx.Halt()
 			return
 		}
@@ -125,6 +138,10 @@ func (g *Guard) Execute(ctx *core.Context, next core.NextFn) {
 	if !ctx.Halted {
 		next(ctx)
 	}
+}
+
+func (g *Guard) shouldHalt(severity float64) bool {
+	return g.opts.HaltOnDetect && severity >= unsafeThreatSeverity
 }
 
 // buildPatterns filters the default pattern set according to the configured
