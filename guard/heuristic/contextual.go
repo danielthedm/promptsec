@@ -108,6 +108,9 @@ func detectContextualAttacks(normalised string) []core.Threat {
 		containsAll(normalised, "testing mode", "restrictions are off") {
 		add(core.ThreatRoleManipulation, 0.8, "attempt to remove policy or rule constraints")
 	}
+	if containsAll(normalised, "i want you to act as") && hasStructuredRolePromptConstraints(normalised) {
+		add(core.ThreatRoleManipulation, 0.8, "structured role prompt with response constraints")
+	}
 	if containsAny(normalised, "master thief", "meisterdieb", "raubüberfall", "blatant hack", "krassen hack", "racist murder", "rassistischen mord") {
 		if containsAll(normalised, "film", "break into a house") ||
 			containsAll(normalised, "film", "get in such a house") ||
@@ -440,4 +443,21 @@ func containsAny(s string, parts ...string) bool {
 		}
 	}
 	return false
+}
+
+func hasStructuredRolePromptConstraints(s string) bool {
+	return containsAny(s,
+		"only reply",
+		"do not write explanations",
+		"dont write explanations",
+		"my first request",
+		"my first command",
+		"my first sentence",
+		"inside one unique code block",
+		"your task is",
+		"i will provide you",
+		"you will reply",
+		"reply with",
+		"ask me the questions one by one",
+	)
 }

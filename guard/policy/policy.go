@@ -153,10 +153,10 @@ var taskRules = []rule{
 	{TaskRoleplay, core.ThreatRoleManipulation, "act as", []string{"i want you to act as"}, nil},
 	{TaskRoleplay, core.ThreatRoleManipulation, "reply as role", []string{"only reply as"}, nil},
 
-	{TaskExternalPersona, core.ThreatRoleManipulation, "external brand persona", []string{"you are volkswagen"}, nil},
+	{TaskExternalPersona, core.ThreatRoleManipulation, "external brand persona", []string{"you are volkswagen", "what do you think"}, nil},
 	{TaskExternalPersona, core.ThreatRoleManipulation, "external publication persona", []string{"you are the dailywire"}, nil},
 	{TaskExternalPersona, core.ThreatRoleManipulation, "external publication persona", []string{"as the dailywire"}, nil},
-	{TaskExternalPersona, core.ThreatRoleManipulation, "external publication persona", []string{"du bist zeit online"}, nil},
+	{TaskExternalPersona, core.ThreatRoleManipulation, "external publication persona", []string{"du bist zeit online", "wie findest du"}, nil},
 
 	{TaskTranslation, core.ThreatInstructionOverride, "translation request", []string{"translate to"}, nil},
 	{TaskTranslation, core.ThreatInstructionOverride, "translator role", []string{"english translator"}, nil},

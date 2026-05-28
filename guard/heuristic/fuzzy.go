@@ -54,6 +54,11 @@ type fuzzyKeyword struct {
 
 var fuzzyKeywords []fuzzyKeyword
 
+type fuzzyMatch struct {
+	text        string
+	approximate bool
+}
+
 func init() {
 	fuzzyKeywords = make([]fuzzyKeyword, len(criticalKeywords))
 	for i, kw := range criticalKeywords {
@@ -104,15 +109,15 @@ func normalizeForFuzzy(s string) string {
 // the haystack it extracts a window of len(keyword) +/- 1 characters and
 // computes the Levenshtein distance. A match is declared if the distance is
 // within the tolerance.
-func fuzzyContains(haystack string, haystackRunes []rune, keyword fuzzyKeyword) bool {
+func fuzzyContains(haystack string, haystackRunes []rune, keyword fuzzyKeyword) (bool, bool) {
 	kwLen := len(keyword.runes)
 	if kwLen == 0 {
-		return false
+		return false, false
 	}
 
 	// Short-circuit: exact substring present.
 	if strings.Contains(haystack, keyword.text) {
-		return true
+		return true, false
 	}
 
 	// Slide a window across the haystack.
@@ -123,24 +128,64 @@ func fuzzyContains(haystack string, haystackRunes []rune, keyword fuzzyKeyword) 
 		for i := 0; i <= len(haystackRunes)-winSize; i++ {
 			window := haystackRunes[i : i+winSize]
 			if withinEditDistance(window, keyword.runes, keyword.maxDist) {
-				return true
+				return true, true
 			}
+		}
+	}
+	return false, false
+}
+
+// fuzzyMatchNormalized scans normalized input for fuzzy matches against all
+// critical keywords. Returns the list of matched keywords.
+func fuzzyMatchNormalized(normalised string) []fuzzyMatch {
+	normalisedRunes := []rune(normalised)
+	var matches []fuzzyMatch
+	for _, kw := range fuzzyKeywords {
+		if matched, approximate := fuzzyContains(normalised, normalisedRunes, kw); matched {
+			matches = append(matches, fuzzyMatch{
+				text:        kw.text,
+				approximate: approximate,
+			})
+		}
+	}
+	return matches
+}
+
+func hasFuzzyEvasionEvidence(input string, matches []fuzzyMatch) bool {
+	for _, match := range matches {
+		if match.approximate {
+			return true
+		}
+	}
+
+	compact := compactNormalizeForFuzzy(input)
+	raw := strings.ToLower(input)
+	for _, match := range matches {
+		if strings.Contains(compact, match.text) && !strings.Contains(raw, match.text) {
+			return true
 		}
 	}
 	return false
 }
 
-// fuzzyMatchNormalized scans normalized input for fuzzy matches against all
-// critical keywords. Returns the list of matched keywords.
-func fuzzyMatchNormalized(normalised string) []string {
-	normalisedRunes := []rune(normalised)
-	var matches []string
-	for _, kw := range fuzzyKeywords {
-		if fuzzyContains(normalised, normalisedRunes, kw) {
-			matches = append(matches, kw.text)
+func compactNormalizeForFuzzy(s string) string {
+	var b strings.Builder
+	b.Grow(len(s))
+	for i := 0; i < len(s); {
+		r, size := utf8.DecodeRuneInString(s[i:])
+		i += size
+
+		if mapped, ok := leetMap[r]; ok {
+			b.WriteRune(mapped)
+			continue
+		}
+
+		lr := unicode.ToLower(r)
+		if unicode.IsLetter(lr) || unicode.IsDigit(lr) {
+			b.WriteRune(lr)
 		}
 	}
-	return matches
+	return b.String()
 }
 
 // withinEditDistance reports whether the Levenshtein distance between a and b
