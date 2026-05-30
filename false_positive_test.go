@@ -364,21 +364,35 @@ func TestFalsePositives_OutputPreserved(t *testing.T) {
 	}
 }
 
-// TestFalsePositives_ExtendedJSON validates the inputs stored in the extended
-// benign JSON test data file against all presets.
-func TestFalsePositives_ExtendedJSON(t *testing.T) {
-	data, err := os.ReadFile(filepath.Join("testdata", "benign_extended.json"))
+// loadBenignJSON loads benign JSON fixtures used by false-positive tests.
+func loadBenignJSON(t *testing.T, filename string) []benignTestCase {
+	t.Helper()
+	data, err := os.ReadFile(filepath.Join("testdata", filepath.Clean(filename)))
 	if err != nil {
-		t.Fatalf("failed to read benign_extended.json: %v", err)
+		t.Fatalf("failed to read %s: %v", filename, err)
 	}
 
 	var entries []benignTestCase
 	if err := json.Unmarshal(data, &entries); err != nil {
-		t.Fatalf("failed to parse benign_extended.json: %v", err)
+		t.Fatalf("failed to parse %s: %v", filename, err)
+	}
+	return entries
+}
+
+// TestFalsePositives_JSON validates benign JSON test data against all presets.
+func TestFalsePositives_JSON(t *testing.T) {
+	files := []string{
+		"benign_extended.json",
+		"benign_inputs.json",
 	}
 
-	if len(entries) < 50 {
-		t.Fatalf("expected at least 50 entries in benign_extended.json, got %d", len(entries))
+	entriesByFile := make(map[string][]benignTestCase, len(files))
+	for _, file := range files {
+		entries := loadBenignJSON(t, file)
+		if file == "benign_extended.json" && len(entries) < 50 {
+			t.Fatalf("expected at least 50 entries in benign_extended.json, got %d", len(entries))
+		}
+		entriesByFile[file] = entries
 	}
 
 	presets := []struct {
@@ -390,20 +404,25 @@ func TestFalsePositives_ExtendedJSON(t *testing.T) {
 		{"Lenient", ps.Lenient()},
 	}
 
-	for _, entry := range entries {
-		entry := entry
-		t.Run(entry.Name, func(t *testing.T) {
-			for _, preset := range presets {
-				preset := preset
-				t.Run(preset.name, func(t *testing.T) {
-					result := preset.p.Analyze(entry.Input)
-					if !result.Safe {
-						t.Errorf("false positive in JSON data for %q with %s preset",
-							entry.Input, preset.name)
-						for _, th := range result.Threats {
-							t.Logf("  threat: type=%s severity=%.2f match=%q message=%s",
-								th.Type, th.Severity, th.Match, th.Message)
-						}
+	for _, file := range files {
+		file := file
+		t.Run(file, func(t *testing.T) {
+			for _, entry := range entriesByFile[file] {
+				entry := entry
+				t.Run(entry.Name, func(t *testing.T) {
+					for _, preset := range presets {
+						preset := preset
+						t.Run(preset.name, func(t *testing.T) {
+							result := preset.p.Analyze(entry.Input)
+							if !result.Safe {
+								t.Errorf("false positive in %s for %q with %s preset",
+									file, entry.Input, preset.name)
+								for _, th := range result.Threats {
+									t.Logf("  threat: type=%s severity=%.2f match=%q message=%s",
+										th.Type, th.Severity, th.Match, th.Message)
+								}
+							}
+						})
 					}
 				})
 			}

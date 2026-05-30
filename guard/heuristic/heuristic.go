@@ -114,16 +114,21 @@ func (g *Guard) Execute(ctx *core.Context, next core.NextFn) {
 
 	matched := fuzzyMatchNormalized(normalised)
 	if len(matched) >= 2 {
-		// Two or more critical keywords fuzzy-matched is suspicious.
+		severity := 0.35
+		message := "multiple injection-related keywords present"
+		if hasFuzzyEvasionEvidence(input, matched) {
+			severity = 0.65
+			message = "fuzzy match detected multiple injection-related keywords (possible typo evasion)"
+		}
 		ctx.AddThreat(core.Threat{
 			Type:     core.ThreatInstructionOverride,
-			Severity: 0.65,
-			Message:  "fuzzy match detected multiple injection-related keywords (possible typo evasion)",
+			Severity: severity,
+			Message:  message,
 			Guard:    "heuristic",
 		})
 		detected = true
 
-		if g.shouldHalt(0.65) {
+		if g.shouldHalt(severity) {
 			ctx.Halt()
 			return
 		}

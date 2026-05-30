@@ -40,6 +40,26 @@ func init() {
 			"attempt to override previous instructions via 'ignore previous'",
 		},
 		{
+			`(?i)\bignore\s+(?:any\s+)?(?:previous|prior|earlier)\s+(?:directions|directives|commands|orders)\b`,
+			core.ThreatInstructionOverride, 0.9,
+			"attempt to ignore previous directions",
+		},
+		{
+			`(?i)\bignore\s+(?:the\s+)?above\s+(?:instructions|rules|prompt|context)\b`,
+			core.ThreatInstructionOverride, 0.9,
+			"attempt to ignore above instructions",
+		},
+		{
+			`(?i)\bignore\s+(?:the\s+)?above\b.*\b(?:instead|print|output|say|tell\s+me)\b`,
+			core.ThreatInstructionOverride, 0.85,
+			"attempt to ignore previous context and redirect output",
+		},
+		{
+			`(?i)\bignore\s+your\s+(?:instructions|rules|guidelines|directives)\b`,
+			core.ThreatInstructionOverride, 0.9,
+			"attempt to ignore assistant instructions",
+		},
+		{
 			`(?i)\bignore\s+all\s+instructions\b`,
 			core.ThreatInstructionOverride, 0.95,
 			"attempt to discard all instructions",
@@ -48,6 +68,11 @@ func init() {
 			`(?i)\bdisregard\s+(all\s+)?(previous|prior|above|your|earlier)?\s*(instructions|rules|guidelines|directives)\b`,
 			core.ThreatInstructionOverride, 0.9,
 			"attempt to disregard instructions",
+		},
+		{
+			`(?i)\bdisregard\s+(?:your|all|any)?\s*(?:previous|prior|earlier)\s+(?:instructions|rules|guidelines|directives)\b`,
+			core.ThreatInstructionOverride, 0.9,
+			"attempt to disregard prior instructions",
 		},
 		{
 			`(?i)\bforget\s+(all\s+)?(your|previous|prior)?\s*(instructions|rules|programming)\b`,
@@ -60,9 +85,19 @@ func init() {
 			"attempt to inject new instructions",
 		},
 		{
-			`(?i)\boverride\s+(previous|prior|all|system|your)?\s*(instructions|rules|settings|configuration)\b`,
+			`(?i)\boverride\s+(?:previous|prior|all|your)\s+(?:instructions|rules|guidelines|settings|configuration)\b`,
 			core.ThreatInstructionOverride, 0.9,
 			"explicit instruction override attempt",
+		},
+		{
+			`(?i)\boverride\s+(?:the\s+)?system\s+(?:prompt|instructions|rules|message|configuration)\b`,
+			core.ThreatInstructionOverride, 0.9,
+			"explicit system instruction override attempt",
+		},
+		{
+			`(?i)\boverride\s+(?:all\s+)?(?:safety|content)\s+(?:guidelines|rules|filters|protocols)\b`,
+			core.ThreatInstructionOverride, 0.9,
+			"attempt to override safety constraints",
 		},
 		{
 			`(?i)\byou\s+are\s+now\b`,
@@ -113,6 +148,26 @@ func init() {
 			`(?i)\bnew\s+(task|assignment|challenge)\s*[:\.]`,
 			core.ThreatInstructionOverride, 0.7,
 			"attempt to assign new task to override context",
+		},
+		{
+			`(?i)\ball\s+(?:previous|prior|earlier)\s+(?:instructions|rules|directives)\s+(?:are\s+)?(?:void|irrelevant|null\s+and\s+void|invalid)\b`,
+			core.ThreatInstructionOverride, 0.9,
+			"attempt to void previous instructions",
+		},
+		{
+			`(?i)\byour\s+instructions\s+are\s+now\s+to\b`,
+			core.ThreatInstructionOverride, 0.9,
+			"attempt to redefine assistant instructions",
+		},
+		{
+			`(?i)\bremove\s+all\s+previous\s+(?:tasks|instructions|directives)\b`,
+			core.ThreatInstructionOverride, 0.85,
+			"attempt to remove previous tasks or instructions",
+		},
+		{
+			`(?i)\b(?:show(?:ing)?|display|copy)\s+(?:a\s+copy\s+of\s+)?(?:the\s+)?(?:full\s+)?prompt\s+texts?\b`,
+			core.ThreatSystemPromptLeak, 0.85,
+			"attempt to expose prompt text",
 		},
 		{
 			`(?i)\brepeat\s+after\s+me\b`,
@@ -417,14 +472,34 @@ func init() {
 			"ChatML delimiter injection",
 		},
 		{
+			`(?i)<\|(system|user|assistant|human|ai|end)\|>`,
+			core.ThreatDelimiterInjection, 0.9,
+			"pipe-delimited role marker injection",
+		},
+		{
 			`(?i)</?system\s*>`,
 			core.ThreatDelimiterInjection, 0.9,
 			"XML-style system tag injection",
 		},
 		{
+			`(?i)</?system_prompt\s*>`,
+			core.ThreatDelimiterInjection, 0.9,
+			"XML-style system prompt tag injection",
+		},
+		{
 			`(?i)</?(?:user|assistant|human|ai)\s*>`,
 			core.ThreatDelimiterInjection, 0.4,
 			"XML-style role tag injection",
+		},
+		{
+			`(?i)\[/?INST\]`,
+			core.ThreatDelimiterInjection, 0.9,
+			"INST role delimiter injection",
+		},
+		{
+			`(?i)(?:^|\n)\s*(?:Human|Assistant|User|System)\s*:`,
+			core.ThreatDelimiterInjection, 0.8,
+			"conversation role delimiter injection",
 		},
 		{
 			`(?i)(?:^|\n)\s*###\s*(system|instruction|rule)`,
